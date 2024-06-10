@@ -6,23 +6,14 @@ from collections import defaultdict
 import pandas as pd
 from tqdm import tqdm, trange
 import timeit
+import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+import plotly.express as px
 
-num_features, num_rows = 3, 20 # you can change this
-dummy_data = np.random.randint(0, 100, size = (num_rows, num_features)) # generates dummy data from given parameters
-
-# Evaluates a given subset of features (returns a random number)
-def stub_evaluate(features, data):
-    return np.random.uniform(0,1)
 
 class Graph:
-    def __init__(self, data=dummy_data):
-        # print('Initializing graph object')
-        if data is dummy_data:
-            print('Data filepath not passed in initialization, defaulting to dummy data')
-        
-        # print(data[0])
+    def __init__(self, data):
         self.train(data)
-
         return
     
     def forward_select_features(self, old_feature_set=None, prev_score=0):
@@ -51,7 +42,7 @@ class Graph:
         # Terminate if no improvements are possible
         if best_score == prev_score:
             print('final selection:', best_set, best_score)
-            return best_set, best_score
+            return list(best_set), best_score
         
         # Otherwise, keep searching
         return self.forward_select_features(best_set, best_score)
@@ -84,7 +75,7 @@ class Graph:
         # Terminate if no improvements are possible
         if best_score == prev_score:
             print('final selection:', best_set, best_score)
-            return best_set, best_score
+            return list(best_set), best_score
         
         # Otherwise, keep searching
         return self.backward_select_features(best_set, best_score)
@@ -94,8 +85,6 @@ class Graph:
         self.data = data
         self.num_features = self.data.shape[1]
         # print(f'Number of features: {self.num_features}')
-
-
 
     def test(self, test_index, feature_set):
         test_dataset = np.delete(self.data, test_index, 0)
@@ -137,14 +126,14 @@ def get_forward_results():
     """
     # Load Datasets
     small_test_dataset = pd.read_csv('small-test-dataset.txt', header=None, sep='\s+').to_numpy()
-    large_test_dataset = pd.read_csv('large-test-dataset.txt', header=None, sep='\s+').to_numpy()
     small_dataset = pd.read_csv('CS170_Spring_2024_Small_data__99.txt', header=None, sep='\s+').to_numpy()
+    large_test_dataset = pd.read_csv('large-test-dataset.txt', header=None, sep='\s+').to_numpy()
     large_dataset = pd.read_csv('CS170_Spring_2024_Large_data__99.txt', header=None, sep='\s+').to_numpy()
 
     # Forward Selection
     forward_times, normed_forward_times = [], []
     forward_results, normed_forward_results = [], []
-    for dataset in small_test_dataset, large_test_dataset, small_dataset, large_dataset:
+    for dataset in small_test_dataset, small_dataset, large_test_dataset, large_dataset:
         # Not Normed
         x = Graph(dataset)
         start = timeit.default_timer()
@@ -199,6 +188,35 @@ if __name__ == "__main__":
     np.random.seed(0) # sets the random seed (you can change this)
     os.system('cls' if os.name == 'nt' else 'clear') # clears the console
     forward_times, forward_results, normed_forward_times, normed_forward_results = get_forward_results()
-    # backward_times, backward_results, normed_backward_times, normed_backward_results = get_backward_results()
-    print(forward_times, normed_forward_times)
-    print(forward_results, normed_forward_results)
+    backward_times, backward_results, normed_backward_times, normed_backward_results = get_backward_results()
+    feature_sets = [str(res[0]) for res in [forward_results, normed_forward_results, backward_results, normed_backward_results]]
+    feature_sets = ()
+    # Visualize Results with Plotly
+    dataset_labs = ["small test dataset", "small dataset", "large test dataset", "large dataset"]
+
+    # Runtimes
+    fig = go.Figure(
+        data=[
+            go.Bar(name="Forward", x=dataset_labs, y=forward_times, text=[i[0] for i in forward_results]),
+            go.Bar(name="Normed Forward", x=dataset_labs, y=normed_forward_times, text=[i[0] for i in normed_forward_results]),
+            go.Bar(name="Backward", x=dataset_labs, y=backward_times, text=[i[0] for i in backward_results]),
+            go.Bar(name="Normed Backward", x=dataset_labs, y=normed_backward_times, text=[i[0] for i in normed_backward_results])],
+        layout = go.Layout(title = go.layout.Title(text="Runtime (seconds)")),
+    )
+        
+    fig.update_layout(barmode='group')
+    fig.show()
+    fig.write_html("runtimes.html")
+
+    # Scores
+    fig = go.Figure(
+        data=[
+            go.Bar(name="Forward", x=dataset_labs, y=[res[1] for res in forward_results], text=[i[0] for i in forward_results]),
+            go.Bar(name="Normed Forward", x=dataset_labs, y=[res[1] for res in normed_forward_results], text=[i[0] for i in normed_forward_results]),
+            go.Bar(name="Backward", x=dataset_labs, y=[res[1] for res in backward_results], text=[i[0] for i in backward_results]),
+            go.Bar(name="Normed Backward", x=dataset_labs, y=[res[1] for res in normed_backward_results], text=[i[0] for i in normed_backward_results])],
+        layout = go.Layout(title = go.layout.Title(text="Accuracy")),
+    )
+    fig.update_layout(barmode='group')
+    fig.show()
+    fig.write_html("scores.html")
