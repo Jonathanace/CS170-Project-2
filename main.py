@@ -5,6 +5,7 @@ import os
 from collections import defaultdict
 import pandas as pd
 from tqdm import tqdm, trange
+import timeit
 
 num_features, num_rows = 3, 20 # you can change this
 dummy_data = np.random.randint(0, 100, size = (num_rows, num_features)) # generates dummy data from given parameters
@@ -28,7 +29,7 @@ class Graph:
         if not old_feature_set:
             old_feature_set = set()
         best_set = old_feature_set 
-        best_score = self.evaluate(old_feature_set)
+        best_score = prev_score
         print('Best so far:', best_set, best_score)
 
         # Check every potential new feature set
@@ -94,6 +95,8 @@ class Graph:
         self.num_features = self.data.shape[1]
         # print(f'Number of features: {self.num_features}')
 
+
+
     def test(self, test_index, feature_set):
         test_dataset = np.delete(self.data, test_index, 0)
         test_point = self.data[test_index, list(feature_set)]
@@ -121,29 +124,81 @@ class Graph:
         score = i/(i+j)
         # print(f'{feature_set}: {score}')
         return score
-            
-
-
-    # def evaluate(self, points, feature_set):
-    #     i, j = 0, 0
-    #     self.train(points)
-    #     for index, data_point in points.iterrows():
-    #         print(f'evaluating row {index}')
-    #         if self.test(data_point, feature_set, leave_out=True):
-    #             i += 1
-    #         else:
-    #             j += 1
-    #     return i / (i + j)
         
+def normalize_dataset(data):
+    col_max = data.max(axis=0)
+    col_min = data.min(axis=0)
+    new_data = (data - col_min) / (col_max - col_min)
+    return new_data
 
+def get_forward_results():
+    """
+    returns: forward_times, forward_results, normed_forward_times, normed_forward_results
+    """
+    # Load Datasets
+    small_test_dataset = pd.read_csv('small-test-dataset.txt', header=None, sep='\s+').to_numpy()
+    large_test_dataset = pd.read_csv('large-test-dataset.txt', header=None, sep='\s+').to_numpy()
+    small_dataset = pd.read_csv('CS170_Spring_2024_Small_data__99.txt', header=None, sep='\s+').to_numpy()
+    large_dataset = pd.read_csv('CS170_Spring_2024_Large_data__99.txt', header=None, sep='\s+').to_numpy()
+
+    # Forward Selection
+    forward_times, normed_forward_times = [], []
+    forward_results, normed_forward_results = [], []
+    for dataset in small_test_dataset, large_test_dataset, small_dataset, large_dataset:
+        # Not Normed
+        x = Graph(dataset)
+        start = timeit.default_timer()
+        res = x.forward_select_features()
+        end = timeit.default_timer()
+        forward_times.append(end - start)
+        forward_results.append(res)
+
+        # Normed
+        y = Graph(normalize_dataset(dataset))
+        start = timeit.default_timer()
+        res = y.forward_select_features()
+        end = timeit.default_timer()
+        normed_forward_times.append(end - start)
+        normed_forward_results.append(res)
+
+    return forward_times, forward_results, normed_forward_times, normed_forward_results
+
+def get_backward_results():
+    """
+    returns: backward_times, backward_results, normed_backward_times, normed_backward_results
+    """
+    # Load Datasets
+    small_test_dataset = pd.read_csv('small-test-dataset.txt', header=None, sep='\s+').to_numpy()
+    large_test_dataset = pd.read_csv('large-test-dataset.txt', header=None, sep='\s+').to_numpy()
+    small_dataset = pd.read_csv('CS170_Spring_2024_Small_data__99.txt', header=None, sep='\s+').to_numpy()
+    large_dataset = pd.read_csv('CS170_Spring_2024_Large_data__99.txt', header=None, sep='\s+').to_numpy()
+
+    # backward Selection
+    backward_times, normed_backward_times = [], []
+    backward_results, normed_backward_results = [], []
+    for dataset in small_test_dataset, large_test_dataset, small_dataset, large_dataset:
+        # Not Normed
+        x = Graph(dataset)
+        start = timeit.default_timer()
+        res = x.backward_select_features()
+        end = timeit.default_timer()
+        backward_times.append(end - start)
+        backward_results.append(res)
+
+        # Normed
+        y = Graph(normalize_dataset(dataset))
+        start = timeit.default_timer()
+        res = y.backward_select_features()
+        end = timeit.default_timer()
+        normed_backward_times.append(end - start)
+        normed_backward_results.append(res)
+
+    return backward_times, backward_results, normed_backward_times, normed_backward_results
 
 if __name__ == "__main__":
     np.random.seed(0) # sets the random seed (you can change this)
     os.system('cls' if os.name == 'nt' else 'clear') # clears the console
-    
-    dataset = pd.read_csv('large-test-dataset.txt', header=None, sep='  | ', engine='python').to_numpy()
-    # print(dataset.shape)
-    x = Graph(dataset)
-    # print(x.evaluate({3,5}))
-    x.forward_select_features()
-    
+    forward_times, forward_results, normed_forward_times, normed_forward_results = get_forward_results()
+    # backward_times, backward_results, normed_backward_times, normed_backward_results = get_backward_results()
+    print(forward_times, normed_forward_times)
+    print(forward_results, normed_forward_results)
